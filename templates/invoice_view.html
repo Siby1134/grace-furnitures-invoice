@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Invoice {{ invoice.invoice_no }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Invoice {{ invoice.invoice_no }}</h1><p class="muted">{{ invoice.consignee_name }} - {{ invoice.vehicle_no }}</p></div><div class="actions"><a class="button" href="{{ url_for('edit_invoice',invoice_id=invoice.id) }}">Edit</a><a class="button primary" href="{{ url_for('invoice_pdf',invoice_id=invoice.id) }}">Download PDF</a></div></div>
+<div class="card invoice-summary"><div><b>{{ company.name }}</b><br>{{ company.address }}<br>GSTIN: {{ company.gstin }}</div><div><b>Invoice No.:</b> {{ invoice.invoice_no }}<br><b>Date:</b> {{ invoice.invoice_date }}<br><b>Vehicle:</b> {{ invoice.vehicle_no }}</div></div>
+<div class="grid two"><div class="card"><h3>Consignee</h3><b>{{ invoice.consignee_name }}</b><p>{{ invoice.consignee_address }}</p><p>GSTIN: {{ invoice.consignee_gstin }}</p></div><div class="card"><h3>Buyer</h3><b>{{ invoice.buyer_name }}</b><p>{{ invoice.buyer_address }}</p><p>GSTIN: {{ invoice.buyer_gstin }}</p></div></div>
+<div class="card table-wrap"><table><thead><tr><th>#</th><th>Description</th><th>HSN</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>{% for x in items %}<tr><td>{{ loop.index }}</td><td>{{ x.description }}</td><td>{{ x.hsn }}</td><td>{{ x.quantity }}</td><td>{{ x.rate|money_plain }}</td><td>{{ (x.quantity*x.rate)|money_plain }}</td></tr>{% endfor %}</tbody></table>
+<div class="view-totals"><p>Subtotal: <b>{{ subtotal|money_plain }}</b></p><p>CGST: <b>{{ cgst|money_plain }}</b></p><p>SGST: <b>{{ sgst|money_plain }}</b></p><p class="grand">Total: <b>{{ total|money }}</b></p></div></div>
+<form method="post" action="{{ url_for('delete_invoice',invoice_id=invoice.id) }}" onsubmit="return confirm('Delete this invoice?')"><button class="danger">Delete Invoice</button></form>
+{% endblock %}

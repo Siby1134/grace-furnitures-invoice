@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Invoices{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Invoices</h1><p class="muted">Saved invoices can be edited and regenerated.</p></div><a class="button primary" href="{{ url_for('new_invoice') }}">+ New Invoice</a></div>
+<div class="card table-wrap">
+<table>
+<thead><tr><th>No.</th><th>Date</th><th>Consignee</th><th>Vehicle</th><th>Actions</th></tr></thead>
+<tbody>
+{% for i in invoices %}
+<tr><td>{{ i.invoice_no }}</td><td>{{ i.invoice_date }}</td><td>{{ i.consignee_name }}</td><td>{{ i.vehicle_no }}</td>
+<td class="actions"><a href="{{ url_for('view_invoice',invoice_id=i.id) }}">View</a><a href="{{ url_for('edit_invoice',invoice_id=i.id) }}">Edit</a><a href="{{ url_for('invoice_pdf',invoice_id=i.id) }}">PDF</a></td></tr>
+{% else %}<tr><td colspan="5">No invoices saved.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

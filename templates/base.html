@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Grace Furnitures Invoice{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% if session.get('user_id') %}
+<header class="topbar">
+  <a class="brand" href="{{ url_for('dashboard') }}">Grace Furnitures</a>
+  <button class="menu-button" type="button" onclick="document.querySelector('.navlinks').classList.toggle('open')">Menu</button>
+  <nav class="navlinks">
+    <a href="{{ url_for('dashboard') }}">Invoices</a>
+    <a href="{{ url_for('new_invoice') }}">New Invoice</a>
+    <a href="{{ url_for('products') }}">Product-HSN Master</a>
+    <a href="{{ url_for('change_password') }}">Password</a>
+    <a href="{{ url_for('logout') }}">Logout</a>
+  </nav>
+</header>
+{% endif %}
+<main class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}<div class="alert {{ category }}">{{ message }}</div>{% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

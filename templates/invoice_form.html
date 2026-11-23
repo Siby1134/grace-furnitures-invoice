@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if is_edit else 'New' }} Invoice{% endblock %}
+{% block content %}
+<h1>{{ 'Edit Invoice ' ~ invoice.invoice_no if is_edit else 'New Invoice' }}</h1>
+<form method="post" id="invoiceForm" action="{{ url_for('update_invoice',invoice_id=invoice.id) if is_edit else url_for('create_invoice') }}">
+<div class="card grid two">
+  <label>Invoice No.<input type="number" name="invoice_no" min="1" step="1" value="{{ invoice.invoice_no }}" required></label>
+  <label>Invoice Date<input type="date" name="invoice_date" value="{{ invoice.invoice_date }}" required></label>
+  <label>Vehicle No.
+    <input list="vehicleList" name="vehicle_no" value="{{ invoice.vehicle_no or '' }}" placeholder="Select or type vehicle number" required>
+    <datalist id="vehicleList">{% for v in vehicles %}<option value="{{ v.vehicle_no }}"></option>{% endfor %}</datalist>
+    <span class="muted">A new vehicle number is saved automatically when the invoice is saved.</span>
+  </label>
+  <label>Despatched Through<input name="despatched_through" value="{{ invoice.despatched_through or 'By Road' }}"></label>
+  <label>Destination<input name="destination" value="{{ invoice.destination or 'Chennai' }}"></label>
+  <label>Place of Supply<input name="place_of_supply" value="{{ invoice.place_of_supply or 'Tamil Nadu' }}"></label>
+  <label>Delivery Note<input name="delivery_note" value="{{ invoice.delivery_note or '' }}"></label>
+  <label>Other Reference(s)<input name="other_reference" value="{{ invoice.other_reference or '' }}"></label>
+  <label>Despatch Document No.<input name="despatch_document_no" value="{{ invoice.despatch_document_no or '' }}"></label>
+  <label>Delivery Note Date<input name="delivery_note_date" value="{{ invoice.delivery_note_date or '' }}"></label>
+  <label>Bill of Lading/LR-RR No.<input name="bill_of_lading" value="{{ invoice.bill_of_lading or '' }}"></label>
+</div>
+
+<div class="grid two parties">
+<section class="card"><h2>Consignee</h2>
+<label>Saved address
+<select onchange="customerChanged(this,'consignee')">
+  <option value="">Manual / New customer</option>
+  {% for c in customers %}<option value="{{ c.name }}" {% if invoice.consignee_name == c.name %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+</select></label>
+<label>Name<input name="consignee_name" value="{{ invoice.consignee_name or '' }}" required></label>
+<label>Address<textarea name="consignee_address" required>{{ invoice.consignee_address or '' }}</textarea></label>
+<label>GSTIN<input name="consignee_gstin" value="{{ invoice.consignee_gstin or '' }}"></label>
+<label>State<input name="consignee_state" value="{{ invoice.consignee_state or 'Tamil Nadu' }}"></label>
+<p class="muted">A new or corrected address is saved automatically when the invoice is saved.</p>
+</section>
+<section class="card"><div class="section-head"><h2>Buyer</h2><button type="button" class="small" onclick="copyBuyer()">Copy consignee</button></div>
+<label>Saved address
+<select onchange="customerChanged(this,'buyer')">
+  <option value="">Manual / New customer</option>
+  {% for c in customers %}<option value="{{ c.name }}" {% if invoice.buyer_name == c.name %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+</select></label>
+<label>Name<input name="buyer_name" value="{{ invoice.buyer_name or '' }}" required></label>
+<label>Address<textarea name="buyer_address" required>{{ invoice.buyer_address or '' }}</textarea></label>
+<label>GSTIN<input name="buyer_gstin" value="{{ invoice.buyer_gstin or '' }}"></label>
+<label>State<input name="buyer_state" value="{{ invoice.buyer_state or 'Tamil Nadu' }}"></label>
+<p class="muted">A new or corrected address is saved automatically when the invoice is saved.</p>
+</section></div>
+
+<section class="card"><div class="section-head"><div><h2>Items</h2><p class="muted">Choose a saved product or enter a new description. Saved HSN and rate fill automatically. New products are saved when the invoice is saved.</p></div><button type="button" class="small" onclick="addRow()">+ Add Item</button></div>
+<datalist id="productList">{% for p in products %}<option value="{{ p.name }}" data-hsn="{{ p.hsn }}" data-rate="{{ '' if p.default_rate is none else p.default_rate }}"></option>{% endfor %}</datalist>
+<div class="items" id="items">
+{% for item in items %}
+<div class="item-row">
+  <label class="saved-product">Saved Product
+    <select class="product-select" onchange="savedProductChanged(this)">
+      <option value="">Manual / New Product</option>
+      {% for p in products %}
+      <option value="{{ p.name }}" data-hsn="{{ p.hsn }}" data-rate="{{ '' if p.default_rate is none else p.default_rate }}" {% if item.description == p.name %}selected{% endif %}>{{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="description">Description<input list="productList" name="description[]" value="{{ item.description or '' }}" oninput="descriptionChanged(this)" onchange="descriptionChanged(this)" required></label>
+  <label>HSN/SAC<input name="hsn[]" value="{{ item.hsn or '940350' }}" readonly></label>
+  <label>Quantity<input type="number" min="0.01" step="0.01" name="quantity[]" value="{{ item.quantity or '' }}" oninput="calculate()" required></label>
+  <label>Rate<input type="number" min="0" step="0.01" name="rate[]" value="{{ item.rate or '' }}" oninput="calculate()" required></label>
+  <label>Amount<input class="lineAmount" readonly value="0.00"></label>
+  <button type="button" class="danger remove" onclick="removeRow(this)">Remove</button>
+</div>
+{% endfor %}
+</div>
+<div class="totals"><div>Subtotal <strong id="subtotal">0.00</strong></div><div>CGST 9% <strong id="cgst">0.00</strong></div><div>SGST 9% <strong id="sgst">0.00</strong></div><div class="grand">Grand Total <strong id="grand">0.00</strong></div></div>
+</section>
+<div class="form-actions"><a class="button" href="{{ url_for('dashboard') }}">Cancel</a><button class="primary">{{ 'Update Invoice' if is_edit else 'Save Invoice' }}</button></div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+function copyBuyer(){['name','address','gstin','state'].forEach(k=>document.querySelector(`[name="buyer_${k}"]`).value=document.querySelector(`[name="consignee_${k}"]`).value)}
+async function customerChanged(select,prefix){
+  if(!select.value) return;
+  const response=await fetch(`/api/customer?name=${encodeURIComponent(select.value)}`);
+  const data=await response.json();
+  if(!data.found) return;
+  document.querySelector(`[name="${prefix}_name"]`).value=data.name||'';
+  document.querySelector(`[name="${prefix}_address"]`).value=data.address||'';
+  document.querySelector(`[name="${prefix}_gstin"]`).value=data.gstin||'';
+  document.querySelector(`[name="${prefix}_state"]`).value=data.state||'Tamil Nadu';
+  document.querySelector('[name="place_of_supply"]').value=data.place_of_supply||data.state||'Tamil Nadu';
+}
+function addRow(){
+  const rows=document.querySelectorAll('.item-row');
+  const n=rows[0].cloneNode(true);
+  n.querySelector('.product-select').selectedIndex=0;
+  n.querySelectorAll('input').forEach(i=>{
+    if(i.name==='hsn[]') i.value='940350';
+    else if(i.classList.contains('lineAmount')) i.value='0.00';
+    else i.value='';
+  });
+  document.getElementById('items').appendChild(n);
+  calculate();
+}
+function removeRow(btn){
+  if(document.querySelectorAll('.item-row').length>1) btn.closest('.item-row').remove();
+  calculate();
+}
+function fillProduct(row,name,hsn,rate){
+  row.querySelector('[name="description[]"]').value=name||'';
+  row.querySelector('[name="hsn[]"]').value=hsn||'940350';
+  row.querySelector('[name="rate[]"]').value=(rate===undefined||rate===null)?'':rate;
+  calculate();
+}
+function savedProductChanged(select){
+  const row=select.closest('.item-row');
+  const option=select.options[select.selectedIndex];
+  if(!select.value){
+    fillProduct(row,'','940350','');
+    row.querySelector('[name="description[]"]').focus();
+    return;
+  }
+  fillProduct(row,select.value,option.dataset.hsn||'940350',option.dataset.rate||'');
+}
+function descriptionChanged(input){
+  const row=input.closest('.item-row');
+  const typed=input.value.trim().toLowerCase();
+  const options=[...document.querySelectorAll('#productList option')];
+  const match=options.find(o=>o.value.trim().toLowerCase()===typed);
+  const select=row.querySelector('.product-select');
+  if(match){
+    select.value=match.value;
+    row.querySelector('[name="hsn[]"]').value=match.dataset.hsn||'940350';
+    row.querySelector('[name="rate[]"]').value=match.dataset.rate||'';
+  }else{
+    select.value='';
+    row.querySelector('[name="hsn[]"]').value='940350';
+  }
+  calculate();
+}
+function calculate(){let subtotal=0;document.querySelectorAll('.item-row').forEach(r=>{const q=parseFloat(r.querySelector('[name="quantity[]"]').value)||0;const rate=parseFloat(r.querySelector('[name="rate[]"]').value)||0;const a=q*rate;r.querySelector('.lineAmount').value=a.toFixed(2);subtotal+=a});const c=subtotal*.09,s=subtotal*.09;document.getElementById('subtotal').textContent=subtotal.toFixed(2);document.getElementById('cgst').textContent=c.toFixed(2);document.getElementById('sgst').textContent=s.toFixed(2);document.getElementById('grand').textContent=(subtotal+c+s).toFixed(2)}
+calculate();
+</script>
+{% endblock %}
